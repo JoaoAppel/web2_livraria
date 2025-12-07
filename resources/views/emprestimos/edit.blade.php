@@ -28,39 +28,75 @@
                         @csrf
                         @method('PUT')
 
-                        {{-- Cliente (somente leitura) --}}
+                        {{-- Cliente --}}
                         <div class="mb-4">
-                            <x-input-label value="Cliente" />
-                            <p class="mt-1 text-gray-900 font-medium">
-                                {{ $emprestimo->client->nome }}
-                            </p>
+                            <x-input-label for="client_id" value="Cliente" />
+                            <select
+                                id="client_id"
+                                name="client_id"
+                                class="mt-1 block w-full rounded-md border border-gray-300 bg-white text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 focus:ring-offset-0"
+                                required
+                            >
+                                <option value="">Selecione um cliente</option>
+                                @foreach ($clientes as $cliente)
+                                    <option value="{{ $cliente->id }}"
+                                        @selected(old('client_id', $emprestimo->client_id) == $cliente->id)>
+                                        {{ $cliente->nome }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('client_id')" class="mt-2" />
                         </div>
 
-                        {{-- Livro (somente leitura) --}}
+                        {{-- Livro --}}
                         <div class="mb-4">
-                            <x-input-label value="Livro" />
-                            <p class="mt-1 text-gray-900 font-medium">
-                                {{ $emprestimo->book->titulo }}
-                            </p>
+                            <x-input-label for="book_id" value="Livro" />
+                            <select
+                                id="book_id"
+                                name="book_id"
+                                class="mt-1 block w-full rounded-md border border-gray-300 bg-white text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 focus:ring-offset-0"
+                                required
+                            >
+                                <option value="">Selecione um livro</option>
+                                @foreach ($livros as $livro)
+                                    <option value="{{ $livro->id }}"
+                                        @selected(old('book_id', $emprestimo->book_id) == $livro->id)>
+                                        {{ $livro->titulo }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('book_id')" class="mt-2" />
                         </div>
 
-                        {{-- Data do empréstimo (somente leitura) --}}
+                        {{-- Data do empréstimo --}}
                         <div class="mb-4">
-                            <x-input-label value="Data do empréstimo" />
-                            <p class="mt-1 text-gray-900">
-                                {{ \Carbon\Carbon::parse($emprestimo->data_emprestimo)->format('d/m/Y') }}
-                            </p>
+                            <x-input-label for="data_emprestimo" value="Data do empréstimo" />
+                            <x-text-input
+                                id="data_emprestimo"
+                                name="data_emprestimo"
+                                type="date"
+                                class="mt-1 block w-full"
+                                :value="old('data_emprestimo', $emprestimo->data_emprestimo)"
+                                required
+                            />
+                            <x-input-error :messages="$errors->get('data_emprestimo')" class="mt-2" />
                         </div>
 
-                        {{-- Data prevista de devolução (somente leitura) --}}
+                        {{-- Data prevista de devolução --}}
                         <div class="mb-4">
-                            <x-input-label value="Data prevista de devolução" />
-                            <p class="mt-1 text-gray-900">
-                                {{ \Carbon\Carbon::parse($emprestimo->data_prevista_devolucao)->format('d/m/Y') }}
-                            </p>
+                            <x-input-label for="data_prevista_devolucao" value="Data prevista de devolução" />
+                            <x-text-input
+                                id="data_prevista_devolucao"
+                                name="data_prevista_devolucao"
+                                type="date"
+                                class="mt-1 block w-full"
+                                :value="old('data_prevista_devolucao', $emprestimo->data_prevista_devolucao)"
+                                required
+                            />
+                            <x-input-error :messages="$errors->get('data_prevista_devolucao')" class="mt-2" />
                         </div>
 
-                        {{-- Data de devolução efetiva (editável) --}}
+                        {{-- Data de devolução efetiva (opcional) --}}
                         <div class="mb-4">
                             <x-input-label for="data_devolucao" value="Data de devolução efetiva" />
                             <x-text-input
@@ -73,7 +109,7 @@
                             <x-input-error :messages="$errors->get('data_devolucao')" class="mt-2" />
                         </div>
 
-                        {{-- Status (editável) --}}
+                        {{-- Status --}}
                         <div class="mb-4">
                             <x-input-label for="status" value="Status" />
                             <select

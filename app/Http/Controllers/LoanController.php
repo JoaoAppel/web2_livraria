@@ -52,6 +52,7 @@ class LoanController extends Controller
             'status'                  => 'aberto',
         ]);
 
+        // reserva 1 exemplar
         $livro->decrement('quantidade_disponivel');
 
         return redirect()->route('emprestimos.index')
@@ -69,27 +70,63 @@ class LoanController extends Controller
     {
         $emprestimo->load(['client', 'book']);
 
-        return view('emprestimos.edit', compact('emprestimo'));
+        $clientes = Client::orderBy('nome')->get();
+        $livros   = Book::orderBy('titulo')->get();
+
+        return view('emprestimos.edit', compact('emprestimo', 'clientes', 'livros'));
     }
 
     public function update(Request $request, Loan $emprestimo)
     {
         $request->validate([
-            'data_devolucao' => 'nullable|date',
-            'status'         => 'required|in:aberto,devolvido',
+            'client_id'               => 'required|exists:clients,id',
+            'book_id'                 => 'required|exists:books,id',
+            'data_emprestimo'         => 'required|date',
+            'data_prevista_devolucao' => 'required|date|after_or_equal:data_emprestimo',
+            'data_devolucao'          => 'nullable|date|after_or_equal:data_emprestimo',
+            'status'                  => 'required|in:aberto,devolvido',
         ]);
 
         $statusAnterior = $emprestimo->status;
+        $livroAnterior  = Book::findOrFail($emprestimo->book_id);
+        $novoLivro      = Book::findOrFail($request->book_id);
+        $novoStatus     = $request->status;
 
-        $emprestimo->update([
-            'data_devolucao' => $request->data_devolucao,
-            'status'         => $request->status,
-        ]);
+        // Se o novo status for "aberto" e:
+        //  - o livro mudou OU
+        //  - o status era "devolvido"
+        // precisamos verificar disponibilidade no novo livro
+        if ($novoStatus === 'aberto') {
+            $precisaChecarDisponibilidade =
+                !($statusAnterior === 'aberto' && $livroAnterior->id === $novoLivro->id);
 
-        // se passou de aberto -> devolvido, devolve 1 exemplar ao estoque
-        if ($statusAnterior === 'aberto' && $request->status === 'devolvido') {
-            $emprestimo->book->increment('quantidade_disponivel');
+            if ($precisaChecarDisponibilidade && $novoLivro->quantidade_disponivel <= 0) {
+                return back()
+                    ->withErrors(['book_id' => 'Não há exemplares disponíveis deste livro.'])
+                    ->withInput();
+            }
         }
+
+        // Ajuste de estoque:
+        // 1) devolve o exemplar do livro anterior, se o empréstimo estava aberto
+        if ($statusAnterior === 'aberto') {
+            $livroAnterior->increment('quantidade_disponivel');
+        }
+
+        // 2) se o novo status for "aberto", retira 1 exemplar do novo livro
+        if ($novoStatus === 'aberto') {
+            $novoLivro->decrement('quantidade_disponivel');
+        }
+
+        // Atualiza os dados do empréstimo
+        $emprestimo->update([
+            'client_id'               => $request->client_id,
+            'book_id'                 => $request->book_id,
+            'data_emprestimo'         => $request->data_emprestimo,
+            'data_prevista_devolucao' => $request->data_prevista_devolucao,
+            'data_devolucao'          => $request->data_devolucao,
+            'status'                  => $novoStatus,
+        ]);
 
         return redirect()->route('emprestimos.index')
             ->with('success', 'Empréstimo atualizado com sucesso!');
@@ -97,6 +134,7 @@ class LoanController extends Controller
 
     public function destroy(Loan $emprestimo)
     {
+        // se ainda estiver aberto, devolve exemplar ao estoque
         if ($emprestimo->status === 'aberto') {
             $emprestimo->book->increment('quantidade_disponivel');
         }
@@ -118,7 +156,7 @@ class LoanController extends Controller
         $pdf = Pdf::loadView('relatorios.emprestimos', [
             'emprestimos' => $emprestimos,
             'dataGeracao' => $dataGeracao,
-        ])->setPaper('a4', 'landscape'); // paisagem, fica melhor pra tabela
+        ])->setPaper('a4', 'landscape');
 
         return $pdf->download('relatorio_emprestimos.pdf');
     }
